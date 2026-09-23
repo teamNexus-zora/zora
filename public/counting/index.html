@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zora's Counting Game</title>
+    <style>
+        :root {
+            --wall: #E0F7FA;
+            --wall-stripe: #B2EBF2;
+            --floor: #FFCC80;
+            --zora: #81D4FA;
+            --button: #FFD54F;
+            --e-blue: #81D4FA;
+            --e-shadow: #29B6F6;
+            --e-pink: #F48FB1;
+        }
+        
+        body {
+            background-color: #81D4FA; /* Sky blue background outside the window */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: 'Comic Sans MS', 'Chalkboard SE', sans-serif;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* Stylized 3D Room */
+        #room {
+            width: 95vw;
+            max-width: 1200px;
+            height: 90vh;
+            background-color: var(--wall);
+            background-image: 
+                radial-gradient(var(--wall-stripe) 15%, transparent 16%),
+                radial-gradient(var(--wall-stripe) 15%, transparent 16%);
+            background-size: 60px 60px, 60px 60px;
+            background-position: 0 0, 30px 30px;
+            
+            border-radius: 50px;
+            box-shadow: inset 0 0 60px rgba(0,0,0,0.1), 0 20px 50px rgba(0,0,0,0.2);
+            position: relative;
+            border: 15px solid #FFF;
+            overflow: hidden;
+        }
+        
+        /* Wooden Floor */
+        #room::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 35%;
+            background-color: var(--floor);
+            background-image: repeating-linear-gradient(to right, transparent, transparent 80px, rgba(139, 69, 19, 0.15) 80px, rgba(139, 69, 19, 0.15) 85px);
+            z-index: 0;
+            box-shadow: inset 0 30px 30px rgba(0,0,0,0.05); /* Shadow from the wall */
+        }
+
+        /* White Baseboard */
+        #room::after {
+            content: '';
+            position: absolute;
+            bottom: 35%;
+            left: 0;
+            width: 100%;
+            height: 18px;
+            background-color: #FFF;
+            box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+            z-index: 1;
+        }
+
+        #score-ui {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            background: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #FF5722;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            z-index: 50;
+            border: 4px solid var(--button);
+            transition: transform 0.2s;
+        }
+
+        #zora-container {
+            position: absolute;
+            top: 2%;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 10;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+        }
+
+        /* Zora Elephant Character */
+        #zora {
+            position: relative;
+            width: 320px;
+            height: 320px;
+            display: flex;
+            justify-content: center;
+            animation: float 4s ease-in-out infinite;
+            transform-style: preserve-3d;
+        }
+
+        #zora-img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            pointer-events: none;
+            filter: drop-shadow(0 15px 25px rgba(0,0,0,0.2));
+            transition: transform 0.1s ease-out; /* For 3D tilt tracking */
+        }
+
+        #speech-bubble {
+            background-color: white;
+            padding: 14px 28px;
+            border-radius: 28px;
+            margin-top: -125px; /* Moved upward by another 1.5cm (55px) */
+            font-size: 20px;
+            color: #444;
+            text-align: center;
+            box-shadow: 0 7px 14px rgba(0,0,0,0.1);
+            max-width: 560px;
+            position: relative;
+            font-weight: bold;
+            border: 4px solid var(--zora);
+            z-index: 15;
+        }
+
+        /* Speech bubble pointer */
+        #speech-bubble::before, #speech-bubble::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            border-style: solid;
+        }
+        #speech-bubble::before {
+            top: -15px;
+            border-width: 0 15px 15px 15px;
+            border-color: transparent transparent var(--zora) transparent;
+        }
+        #speech-bubble::after {
+            top: -10px;
+            border-width: 0 11px 11px 11px;
+            border-color: transparent transparent white transparent;
+        }
+
+        #play-area {
+            position: absolute;
+            bottom: 8%;
+            width: 100%;
+            height: 50%;
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-end;
+            z-index: 5;
+        }
+
+        #apple-source {
+            width: 45%;
+            height: 80%;
+            background-color: rgba(255, 255, 255, 0.6);
+            border-radius: 40px;
+            border: 5px dashed #FFF;
+            position: relative;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+        }
+
+        #apple-label {
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #777;
+            font-weight: bold;
+            font-size: 24px;
+            background: #FFF;
+            padding: 8px 30px;
+            border-radius: 30px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        #basket-container {
+            width: 320px;
+            height: 220px;
+            background-color: #E2C284;
+            background-image: 
+                repeating-linear-gradient(45deg, transparent, transparent 20px, rgba(139,69,19,0.15) 20px, rgba(139,69,19,0.15) 40px),
+                repeating-linear-gradient(-45deg, transparent, transparent 20px, rgba(139,69,19,0.15) 20px, rgba(139,69,19,0.15) 40px);
+            border-radius: 20px 20px 70px 70px;
+            position: relative;
+            display: flex;
+            flex-wrap: wrap;
+            align-content: flex-start;
+            justify-content: center;
+            padding: 30px;
+            box-sizing: border-box;
+            box-shadow: inset 0 -20px 50px rgba(0,0,0,0.5), inset 0 20px 30px rgba(0,0,0,0.3), 0 25px 35px rgba(0,0,0,0.25);
+            border: 6px solid #B0703B;
+            border-top: 20px solid #A0522D;
+        }
+
+        #basket-front {
+            position: absolute;
+            bottom: -6px;
+            left: -6px;
+            width: calc(100% + 12px);
+            height: 65%;
+            background: linear-gradient(to bottom, transparent, rgba(139, 69, 19, 0.7));
+            border-radius: 0 0 65px 65px;
+            pointer-events: none;
+        }
+
+        #basket-label {
+            position: absolute;
+            bottom: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #777;
+            font-weight: bold;
+            font-size: 24px;
+            background: #FFF;
+            padding: 8px 30px;
+            border-radius: 30px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            z-index: 20;
+        }
+
+        .apple {
+            width: 80px;
+            height: 80px;
+            cursor: pointer;
+            position: absolute;
+            touch-action: none;
+            transition: transform 0.1s;
+            filter: drop-shadow(0 10px 10px rgba(0,0,0,0.2));
+            z-index: 10;
+        }
+
+        .apple:active {
+            transform: scale(1.15) rotate(-5deg);
+        }
+
+        .apple.in-basket {
+            position: static !important;
+            margin: -5px 5px;
+            transform: scale(0.85);
+            filter: drop-shadow(0 5px 5px rgba(0,0,0,0.4));
+        }
+
+        #controls {
+            position: absolute;
+            bottom: 5%;
+            right: 5%;
+            z-index: 20;
+        }
+
+        button {
+            background-color: var(--button);
+            border: 6px solid #FFF;
+            border-radius: 30px;
+            padding: 20px 50px;
+            font-size: 32px;
+            color: #333;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 15px 25px rgba(0,0,0,0.15);
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        button:hover {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 20px 30px rgba(0,0,0,0.2);
+        }
+
+        button:active {
+            transform: translateY(2px) scale(0.95);
+            box-shadow: 0 5px 10px rgba(0,0,0,0.1);
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+            border-color: #eee;
+        }
+
+        #confetti {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 999;
+        }
+        
+        /* Start Screen */
+        #start-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(129, 212, 250, 0.95);
+            z-index: 2000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+        }
+        
+        .menu-box {
+            background: white;
+            padding: 60px;
+            border-radius: 50px;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+            border: 10px solid var(--button);
+            max-width: 600px;
+        }
+        
+        .menu-box h1 {
+            font-size: 56px;
+            color: #FF5722;
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+        
+        .menu-box p {
+            font-size: 24px;
+            color: #555;
+            margin-bottom: 40px;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Start Menu -->
+    <div id="start-screen">
+        <div class="menu-box">
+            <h1>Zora's Apples!</h1>
+            <p>Help Zora count her apples! Drag them into the basket, or take them out when she has too many.</p>
+            <button id="start-game-btn">Play Now!</button>
+        </div>
+    </div>
+
+    <div id="room">
+        <!-- Score UI -->
+        <div id="score-ui">
+            Streak: <span id="streak-count">0</span> 🔥
+        </div>
+        
+        <!-- Zora Character Area -->
+        <div id="zora-container">
+            <div id="zora">
+                <img src="elephant.png" alt="Zora" id="zora-img">
+            </div>
+            <div id="speech-bubble">Hi! I'm Zora! Let's play!</div>
+        </div>
+        
+        <!-- Play Area -->
+        <div id="play-area">
+            <div id="apple-source">
+                <div id="apple-label">Apples</div>
+            </div>
+            
+            <div id="basket-container">
+                <div id="basket-label">Basket</div>
+                <div id="basket-front"></div>
+            </div>
+        </div>
+        
+        <!-- Controls -->
+        <div id="controls">
+            <button id="check-btn">Done!</button>
+        </div>
+    </div>
+    
+    <!-- Confetti Canvas -->
+    <canvas id="confetti"></canvas>
+
+    <script>
+        // --- Audio System ---
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playSound(type) {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            const now = audioCtx.currentTime;
+            
+            if (type === 'grab') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.exponentialRampToValueAtTime(600, now + 0.1);
+                gainNode.gain.setValueAtTime(1.5, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            } else if (type === 'drop') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.exponentialRampToValueAtTime(300, now + 0.15);
+                gainNode.gain.setValueAtTime(1.5, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                osc.start(now);
+                osc.stop(now + 0.15);
+            } else if (type === 'yay') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(440, now);
+                osc.frequency.setValueAtTime(554.37, now + 0.15);
+                osc.frequency.setValueAtTime(659.25, now + 0.3);
+                osc.frequency.setValueAtTime(880, now + 0.45);
+                gainNode.gain.setValueAtTime(1.0, now);
+                gainNode.gain.linearRampToValueAtTime(0, now + 0.8);
+                osc.start(now);
+                osc.stop(now + 0.8);
+            } else if (type === 'boop') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(200, now);
+                osc.frequency.exponentialRampToValueAtTime(100, now + 0.2);
+                gainNode.gain.setValueAtTime(1.5, now);
+                gainNode.gain.linearRampToValueAtTime(0, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            }
+        }
+
+        // --- Game State ---
+        const state = {
+            targetApplesInBasket: 0,
+            startApplesInBasket: 0,
+            totalZoraWillHave: 0,
+            mode: 'add',
+            difficulty: 1,
+            streak: 0
+        };
+
+        const zoraSpeech = document.getElementById('speech-bubble');
+        const basket = document.getElementById('basket-container');
+        const basketFront = document.getElementById('basket-front');
+        const appleSource = document.getElementById('apple-source');
+        const checkBtn = document.getElementById('check-btn');
+        const startBtn = document.getElementById('start-game-btn');
+        const streakCountUI = document.getElementById('streak-count');
+        const scoreUI = document.getElementById('score-ui');
+
+        function init() {
+            startBtn.addEventListener('click', () => {
+                initAudio();
+                document.getElementById('start-screen').classList.add('hidden');
+                startChallenge();
+            });
+            checkBtn.addEventListener('click', checkAnswer);
+        }
+
+        // Start a new challenge
+        function startChallenge() {
+            // After difficulty 3, 50% chance of subtraction mode
+            if (state.difficulty >= 4 && Math.random() > 0.5) {
+                state.mode = 'subtract';
+            } else {
+                state.mode = 'add';
+            }
+            
+            // Clean up previous round
+            const apples = document.querySelectorAll('.apple');
+            apples.forEach(a => a.remove());
+
+            if (state.mode === 'add') {
+                let zoraHas = Math.floor(Math.random() * (1 + state.difficulty)) + 1;
+                state.targetApplesInBasket = Math.floor(Math.random() * (1 + state.difficulty)) + 1;
+                state.startApplesInBasket = 0;
+                state.totalZoraWillHave = zoraHas + state.targetApplesInBasket;
+                
+                zoraSpeech.innerText = `Let's count! I have ${zoraHas} apples! Can you put ${state.targetApplesInBasket} more in the basket?`;
+            } else {
+                // Subtraction mode
+                state.startApplesInBasket = Math.floor(Math.random() * (state.difficulty)) + 3; // at least 3
+                state.targetApplesInBasket = Math.floor(Math.random() * (state.startApplesInBasket - 1)) + 1; // less than starting amount
+                state.totalZoraWillHave = state.targetApplesInBasket;
+                
+                zoraSpeech.innerText = `Oh no! I have ${state.startApplesInBasket} apples in the basket, but I only want ${state.targetApplesInBasket}! Can you take the extra away?`;
+            }
+            
+            // Spawn apples
+            let totalToSpawn = (state.mode === 'add') 
+                ? state.targetApplesInBasket + Math.floor(Math.random() * 3) + 2 // Needed + Distractors
+                : state.startApplesInBasket; // Only spawn what's in the basket
+                
+            for(let i = 0; i < totalToSpawn; i++) {
+                const apple = createAppleElement();
+                
+                if (state.mode === 'subtract' && i < state.startApplesInBasket) {
+                    apple.classList.add('in-basket');
+                    basket.insertBefore(apple, basketFront);
+                } else {
+                    appleSource.appendChild(apple);
+                    apple.style.left = (10 + Math.random() * 70) + '%';
+                    apple.style.top = (10 + Math.random() * 70) + '%';
+                }
+            }
+        }
+
+        function createAppleElement() {
+            const apple = document.createElement('div');
+            apple.className = 'apple';
+            
+            apple.innerHTML = `
+                <svg viewBox="0 0 100 100" width="100%" height="100%" style="overflow: visible;">
+                    <defs>
+                        <radialGradient id="appleGrad" cx="30%" cy="30%" r="70%">
+                            <stop offset="0%" stop-color="#ff8a80"/>
+                            <stop offset="70%" stop-color="#f44336"/>
+                            <stop offset="100%" stop-color="#c62828"/>
+                        </radialGradient>
+                    </defs>
+                    <ellipse cx="50" cy="85" rx="25" ry="10" fill="rgba(0,0,0,0.15)" />
+                    <ellipse cx="50" cy="30" rx="15" ry="5" fill="#b71c1c" />
+                    <path d="M 50 32 Q 45 15 55 5" stroke="#5d4037" stroke-width="4" fill="none" stroke-linecap="round" />
+                    <path d="M 53 20 Q 75 5 80 25 Q 60 35 53 20" fill="#4caf50" />
+                    <path d="M 53 20 Q 65 15 80 25" stroke="#388e3c" stroke-width="2" fill="none" />
+                    <path d="M 50 30 C 75 10, 95 40, 85 70 C 75 95, 55 90, 50 85 C 45 90, 25 95, 15 70 C 5 40, 25 10, 50 30 Z" fill="url(#appleGrad)" />
+                    <path d="M 25 45 Q 30 30 45 35" stroke="rgba(255,255,255,0.4)" stroke-width="4" fill="none" stroke-linecap="round" />
+                </svg>
+            `;
+            
+            apple.addEventListener('pointerdown', startDrag);
+            return apple;
+        }
+
+        // --- Interactive 3D Tilt Tracking ---
+        function updateEyes(x, y) {
+            const zoraImg = document.getElementById('zora-img');
+            if (!zoraImg) return;
+            
+            const rect = zoraImg.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            
+            // Calculate tilt based on mouse position relative to center
+            const deltaX = x - centerX;
+            const deltaY = y - centerY;
+            
+            // Max rotation of 15 degrees
+            const rotateX = Math.max(-15, Math.min(15, -deltaY / 20));
+            const rotateY = Math.max(-15, Math.min(15, deltaX / 20));
+            
+            zoraImg.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+        }
+
+        document.addEventListener('pointermove', (e) => {
+            updateEyes(e.clientX, e.clientY);
+        });
+
+        // --- Custom Drag and Drop ---
+        let activeApple = null;
+        let offsetX = 0;
+        let offsetY = 0;
+
+        function startDrag(e) {
+            activeApple = this;
+            playSound('grab');
+            
+            const rect = activeApple.getBoundingClientRect();
+            offsetX = e.clientX - rect.left;
+            offsetY = e.clientY - rect.top;
+            
+            activeApple.style.position = 'fixed';
+            activeApple.style.left = rect.left + 'px';
+            activeApple.style.top = rect.top + 'px';
+            activeApple.style.zIndex = 1000;
+            
+            // Re-append to body so it floats above everything while dragging
+            document.body.appendChild(activeApple);
+            
+            activeApple.setPointerCapture(e.pointerId);
+            
+            activeApple.addEventListener('pointermove', moveDrag);
+            activeApple.addEventListener('pointerup', endDrag);
+            activeApple.addEventListener('pointercancel', endDrag);
+        }
+
+        function moveDrag(e) {
+            if (!activeApple) return;
+            activeApple.style.left = (e.clientX - offsetX) + 'px';
+            activeApple.style.top = (e.clientY - offsetY) + 'px';
+            updateEyes(e.clientX, e.clientY);
+        }
+
+        function performWithSmoothLayout(action) {
+            const allApples = Array.from(document.querySelectorAll('.apple'));
+            const firstRects = new Map();
+            allApples.forEach(apple => {
+                firstRects.set(apple, apple.getBoundingClientRect());
+            });
+            
+            action();
+            
+            allApples.forEach(apple => {
+                const first = firstRects.get(apple);
+                const last = apple.getBoundingClientRect();
+                if (!first || last.width === 0) return;
+                
+                const deltaX = first.left - last.left;
+                const deltaY = first.top - last.top;
+                
+                if (Math.abs(deltaX) > 1 || Math.abs(deltaY) > 1) {
+                    apple.animate([
+                        { transform: `translate(${deltaX}px, ${deltaY}px)` },
+                        { transform: 'translate(0, 0)' }
+                    ], {
+                        duration: 350,
+                        easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)'
+                    });
+                }
+            });
+        }
+
+        function endDrag(e) {
+            if (!activeApple) return;
+            
+            activeApple.removeEventListener('pointermove', moveDrag);
+            activeApple.removeEventListener('pointerup', endDrag);
+            activeApple.removeEventListener('pointercancel', endDrag);
+            activeApple.releasePointerCapture(e.pointerId);
+            
+            const basketRect = basket.getBoundingClientRect();
+            const appleRect = activeApple.getBoundingClientRect();
+            
+            const isOverlapping = !(
+                appleRect.right < basketRect.left || 
+                appleRect.left > basketRect.right || 
+                appleRect.bottom < basketRect.top || 
+                appleRect.top > basketRect.bottom
+            );
+            
+            const droppedApple = activeApple; // save reference for action
+            
+            performWithSmoothLayout(() => {
+                if (isOverlapping) {
+                    playSound('drop');
+                    droppedApple.classList.add('in-basket');
+                    droppedApple.style.position = '';
+                    droppedApple.style.left = '';
+                    droppedApple.style.top = '';
+                    droppedApple.style.zIndex = '';
+                    basket.insertBefore(droppedApple, basketFront);
+                } else {
+                    playSound('drop');
+                    droppedApple.classList.remove('in-basket');
+                    droppedApple.style.position = 'absolute';
+                    droppedApple.style.zIndex = '';
+                    appleSource.appendChild(droppedApple);
+
+                    const sourceRect = appleSource.getBoundingClientRect();
+                    let newLeft = e.clientX - offsetX - sourceRect.left;
+                    let newTop = e.clientY - offsetY - sourceRect.top;
+                    
+                    newLeft = Math.max(0, Math.min(newLeft, sourceRect.width - appleRect.width));
+                    newTop = Math.max(0, Math.min(newTop, sourceRect.height - appleRect.height));
+
+                    droppedApple.style.left = newLeft + 'px';
+                    droppedApple.style.top = newTop + 'px';
+                }
+            });
+            
+            activeApple = null;
+        }
+
+        // --- Answer Evaluation ---
+        function checkAnswer() {
+            let currentInBasket = basket.querySelectorAll('.apple').length;
+            
+            if (currentInBasket === state.targetApplesInBasket) {
+                // Success
+                playSound('yay');
+                state.streak++;
+                streakCountUI.innerText = state.streak;
+                
+                // Pop the score UI
+                scoreUI.style.transform = 'scale(1.2)';
+                setTimeout(() => scoreUI.style.transform = 'scale(1)', 200);
+                
+                zoraSpeech.innerText = `Yay! Now I have ${state.totalZoraWillHave} apples!`;
+                
+                // Increase difficulty periodically
+                if (state.streak % 2 === 0) {
+                    state.difficulty++;
+                }
+                
+                triggerConfetti();
+                checkBtn.disabled = true;
+                
+                setTimeout(() => {
+                    checkBtn.disabled = false;
+                    startChallenge();
+                }, 4000);
+
+            } else {
+                // Mistake
+                playSound('boop');
+                state.streak = 0;
+                streakCountUI.innerText = state.streak;
+                
+                if (currentInBasket > state.targetApplesInBasket) {
+                    zoraSpeech.innerText = `Whoa! That's too many apples in the basket! Let's count them again.`;
+                } else {
+                    zoraSpeech.innerText = `Good try! But we need a few more in the basket.`;
+                }
+                setTimeout(resetBasket, 3000);
+            }
+        }
+
+        function resetBasket() {
+            // Only reset to the initial state of the current challenge
+            const apples = document.querySelectorAll('.apple');
+            apples.forEach((apple, index) => {
+                if (state.mode === 'subtract' && index < state.startApplesInBasket) {
+                    apple.classList.add('in-basket');
+                    apple.style.position = '';
+                    basket.insertBefore(apple, basketFront);
+                } else if (state.mode === 'add') {
+                    apple.classList.remove('in-basket');
+                    appleSource.appendChild(apple);
+                    apple.style.position = 'absolute';
+                    apple.style.left = (10 + Math.random() * 70) + '%';
+                    apple.style.top = (10 + Math.random() * 70) + '%';
+                } else {
+                    // For distractors in subtract mode, just put them in source
+                    apple.classList.remove('in-basket');
+                    appleSource.appendChild(apple);
+                    apple.style.position = 'absolute';
+                    apple.style.left = (10 + Math.random() * 70) + '%';
+                    apple.style.top = (10 + Math.random() * 70) + '%';
+                }
+            });
+            
+            if (state.mode === 'add') {
+                zoraSpeech.innerText = `Let's try again! I have ${state.totalZoraWillHave - state.targetApplesInBasket} apples! Can you put ${state.targetApplesInBasket} more in the basket?`;
+            } else {
+                zoraSpeech.innerText = `Let's try again! I have ${state.startApplesInBasket} apples, but I only want ${state.targetApplesInBasket}! Take the extra away.`;
+            }
+        }
+
+        // --- Confetti ---
+        function triggerConfetti() {
+            const canvas = document.getElementById('confetti');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            const particles = [];
+            const colors = ['#FFD54F', '#FFAB91', '#81D4FA', '#A5D6A7', '#CE93D8'];
+            
+            for(let i=0; i<150; i++) {
+                particles.push({
+                    x: canvas.width / 2,
+                    y: canvas.height / 2 + 50,
+                    r: Math.random() * 8 + 4,
+                    dx: Math.random() * 16 - 8,
+                    dy: Math.random() * -15 - 5,
+                    color: colors[Math.floor(Math.random() * colors.length)]
+                });
+            }
+            
+            let frame = 0;
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                let active = false;
+                
+                particles.forEach(p => {
+                    p.dy += 0.3; // gravity
+                    p.x += p.dx;
+                    p.y += p.dy;
+                    if (p.y < canvas.height) active = true;
+                    
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                    ctx.fillStyle = p.color;
+                    ctx.fill();
+                });
+                
+                if (active && frame < 300) {
+                    frame++;
+                    requestAnimationFrame(animate);
+                } else {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+            }
+            animate();
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
